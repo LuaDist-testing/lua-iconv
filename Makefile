@@ -1,5 +1,5 @@
 # luaiconv - Performs character set conversions in Lua
-# (c) 2005-06 Alexandre Erwin Ittner <aittner@netuno.com.br>
+# (c) 2005-08 Alexandre Erwin Ittner <aittner@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -26,33 +26,40 @@
 #CC = gcc
 #RM = rm
 
+# Gives a nice speedup, but also spoils debugging on x86. Comment out this
+# line when debugging.
+OMIT_FRAME_POINTER = -fomit-frame-pointer
+
 # Name of .pc file. "lua5.1" on Debian/Ubuntu
 LUAPKG = lua5.1
 CFLAGS = `pkg-config $(LUAPKG) --cflags` -O3 -Wall
+LFLAGS = -shared $(OMIT_FRAME_POINTER)
 INSTALL_PATH = `pkg-config $(LUAPKG) --variable=INSTALL_CMOD`
-LIBS = `pkg-config $(LUAPKG) --libs`
-LIBFLAG = -shared
 
 ## If your system doesn't have pkg-config, comment out the previous lines and
 ## uncomment and change the following ones according to your building
 ## enviroment.
 
 #CFLAGS = -I/usr/include/lua5.1/ -O3 -Wall
-#LIBS = -llua5.1
+#LFLAGS = -shared $(OMIT_FRAME_POINTER)
 #INSTALL_PATH = /usr/lib/lua/5.1
 
 
-iconv.so: luaiconv.c
-	$(CC) -o iconv.so $(LIBFLAG) $(LIBS) $(CFLAGS) luaiconv.c
+all: iconv.so
+
+iconv.lo: luaiconv.c
+	$(CC) -o iconv.lo -c $(CFLAGS) luaiconv.c
+
+iconv.so: iconv.lo
+	$(CC) -o iconv.so $(LFLAGS) $(LIBS) iconv.lo
 
 install: iconv.so
 	make test
-	install -s iconv.so $(INSTALL_PATH)
+	install -D -s iconv.so $(INSTALL_PATH)/iconv.so
 
 clean:
-	$(RM) iconv.so
+	$(RM) iconv.so iconv.lo
 
 test: iconv.so test_iconv.lua
 	lua test_iconv.lua
 
-all: iconv.so
