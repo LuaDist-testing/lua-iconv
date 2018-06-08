@@ -1,5 +1,5 @@
 # luaiconv - Performs character set conversions in Lua
-# (c) 2005-08 Alexandre Erwin Ittner <aittner@gmail.com>
+# (c) 2005-10 Alexandre Erwin Ittner <alexandre@ittner.com.br>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -28,21 +28,28 @@
 
 # Gives a nice speedup, but also spoils debugging on x86. Comment out this
 # line when debugging.
-OMIT_FRAME_POINTER = -fomit-frame-pointer
+OMIT_FRAME_PTR = -fomit-frame-pointer
 
-# Name of .pc file. "lua5.1" on Debian/Ubuntu
-LUAPKG = lua5.1
-CFLAGS = `pkg-config $(LUAPKG) --cflags` -fPIC -O3 -Wall
-LFLAGS = -shared $(OMIT_FRAME_POINTER)
-INSTALL_PATH = `pkg-config $(LUAPKG) --variable=INSTALL_CMOD`
+LUABIN = lua
+LUAPKG = lua5.2
+CFLAGS = `pkg-config $(LUAPKG) --cflags` -fPIC -O3 -Wall $(OMIT_FRAME_PTR)
+LFLAGS = -shared
 
-## If your system doesn't have pkg-config, comment out the previous lines and
-## uncomment and change the following ones according to your building
-## enviroment.
+INSTALL_PATH = `$(LUABIN) -e'                           \
+    for dir in package.cpath:gmatch("(/[^?;]+)?") do    \
+        io.write(dir)                                   \
+        os.exit(0)                                      \
+    end                                                 \
+    os.exit(1)                                          \
+'`
 
-#CFLAGS = -I/usr/include/lua5.1/ -fPIC -O3 -Wall
-#LFLAGS = -shared $(OMIT_FRAME_POINTER)
-#INSTALL_PATH = /usr/lib/lua/5.1
+## If your system doesn't have pkg-config or if you do not want to get the
+## install path from Lua, comment out the previous lines and uncomment and
+## change the following ones according to your building environment.
+
+#CFLAGS = -I/usr/local/include/ -fPIC -O3 -Wall $(OMIT_FRAME_PTR)
+#LFLAGS = -shared
+#INSTALL_PATH = /usr/local/lib/lua/5.2/
 
 
 all: iconv.so

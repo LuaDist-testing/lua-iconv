@@ -1,6 +1,6 @@
 /*
  * luaiconv - Performs character set conversions in Lua
- * (c) 2005-09 Alexandre Erwin Ittner <aittner@gmail.com>
+ * (c) 2005-11 Alexandre Erwin Ittner <alexandre@ittner.com.br>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -24,7 +24,6 @@
  * If you use this package in a product, an acknowledgment in the product
  * documentation would be greatly appreciated (but it is not required).
  *
- * $Id: luaiconv.c 65 2009-08-06 16:30:06Z dermeister $
  *
  */
 
@@ -37,39 +36,39 @@
 #include <errno.h>
 
 #define LIB_NAME                "iconv"
-#define LIB_VERSION             LIB_NAME " 6"
+#define LIB_VERSION             LIB_NAME " 7"
 #define ICONV_TYPENAME          "iconv_t"
 
-
-/* Compatibility between Lua 5.1+ and Lua 5.0 */
-#ifndef LUA_VERSION_NUM
-#define LUA_VERSION_NUM 0
-#endif
 #if LUA_VERSION_NUM < 501
-#define luaL_register(a, b, c) luaL_openlib((a), (b), (c), 0)
+ #error "Unsuported Lua version. You must use Lua >= 5.1"
+#endif
+
+#if LUA_VERSION_NUM < 502
+ #define luaL_newlib(L, f)  { lua_newtable(L); luaL_register(L, NULL, f); }
+ #define lua_rawlen(L, i)   lua_objlen(L, i)
 #endif
 
 
-/* Emulates lua_(un)boxpointer from Lua 5.0 (don't exists on Lua 5.1) */
-#define boxptr(L, p)   (*(void**)(lua_newuserdata(L, sizeof(void*))) = (p))
-#define unboxptr(L, i) (*(void**)(lua_touserdata(L, i)))
+#define BOXPTR(L, p)   (*(void**)(lua_newuserdata(L, sizeof(void*))) = (p))
+#define UNBOXPTR(L, i) (*(void**)(lua_touserdata(L, i)))
 
-/* Table assumed on top */
-#define tblseticons(L, c, v)    \
-    lua_pushliteral(L, c);      \
-    lua_pushnumber(L, v);       \
-    lua_settable(L, -3);
-
-
+/* Set a integer constant. Assumes a table in the top of the stack */
+#define TBL_SET_INT_CONST(L, c) {   \
+    lua_pushliteral(L, #c);         \
+    lua_pushnumber(L, c);           \
+    lua_settable(L, -3);            \
+}
 
 #define ERROR_NO_MEMORY     1
 #define ERROR_INVALID       2
 #define ERROR_INCOMPLETE    3
 #define ERROR_UNKNOWN       4
+#define ERROR_FINALIZED     5
+
 
 
 static void push_iconv_t(lua_State *L, iconv_t cd) {
-    boxptr(L, cd);
+    BOXPTR(L, cd);
     luaL_getmetatable(L, ICONV_TYPENAME);
     lua_setmetatable(L, -2);
 }
@@ -77,12 +76,11 @@ static void push_iconv_t(lua_State *L, iconv_t cd) {
 
 static iconv_t get_iconv_t(lua_State *L, int i) {
     if (luaL_checkudata(L, i, ICONV_TYPENAME) != NULL) {
-        iconv_t cd = unboxptr(L, i);
-        if (cd == (iconv_t) NULL)
-            luaL_error(L, "attempt to use an invalid " ICONV_TYPENAME);
-        return cd;
+        iconv_t cd = UNBOXPTR(L, i);
+        return cd;  /* May be NULL. This must be checked by the caller. */
     }
-    luaL_typerror(L, i, ICONV_TYPENAME);
+    luaL_argerror(L, i, lua_pushfstring(L, ICONV_TYPENAME " expected, got %s",
+        luaL_typename(L, i)));
     return NULL;
 }
 
@@ -94,21 +92,28 @@ static int Liconv_open(lua_State *L) {
     if (cd != (iconv_t)(-1))
         push_iconv_t(L, cd);    /* ok */
     else
-        lua_pushnil(L);         /* erro */
+        lua_pushnil(L);         /* error */
     return 1;
 }
 
+#define CONV_BUF_SIZE 256
 
 static int Liconv(lua_State *L) {
     iconv_t cd = get_iconv_t(L, 1);
-    size_t ibleft = lua_strlen(L, 2);
+    size_t ibleft = lua_rawlen(L, 2);
     char *inbuf = (char*) luaL_checkstring(L, 2);
     char *outbuf;
     char *outbufs;
-    size_t obsize = (ibleft > 256) ? ibleft : 256; 
+    size_t obsize = (ibleft > CONV_BUF_SIZE) ? ibleft : CONV_BUF_SIZE; 
     size_t obleft = obsize;
     size_t ret = -1;
     int hasone = 0;
+
+    if (cd == NULL) {
+        lua_pushstring(L, "");
+        lua_pushnumber(L, ERROR_FINALIZED);
+        return 2;
+    }
 
     outbuf = (char*) malloc(obsize * sizeof(char));
     if (outbuf == NULL) {
@@ -192,15 +197,20 @@ static int Liconvlist(lua_State *L) {
 
 static int Liconv_close(lua_State *L) {
     iconv_t cd = get_iconv_t(L, 1);
-    if (iconv_close(cd) == 0)
+    if (cd != NULL && iconv_close(cd) == 0) {
+        /* Mark the pointer as freed, preventing interpreter crashes
+           if the user forces __gc to be called twice. */
+        void **ptr = lua_touserdata(L, 1);
+        *ptr = NULL;
         lua_pushboolean(L, 1);  /* ok */
+    }
     else
-        lua_pushnil(L);         /* erro */
+        lua_pushnil(L);         /* error */
     return 1;
 }
 
 
-static const luaL_reg inconvFuncs[] = {
+static const luaL_Reg iconv_funcs[] = {
     { "open",   Liconv_open },
     { "new",    Liconv_open },
     { "iconv",  Liconv },
@@ -211,29 +221,29 @@ static const luaL_reg inconvFuncs[] = {
 };
 
 
-static const luaL_reg iconvMT[] = {
-    { "__gc", Liconv_close },
-    { NULL, NULL }
-};
-
-
 int luaopen_iconv(lua_State *L) {
-    luaL_register(L, LIB_NAME, inconvFuncs);
+    luaL_newlib(L, iconv_funcs);
 
-    tblseticons(L, "ERROR_NO_MEMORY",   ERROR_NO_MEMORY);
-    tblseticons(L, "ERROR_INVALID",     ERROR_INVALID);
-    tblseticons(L, "ERROR_INCOMPLETE",  ERROR_INCOMPLETE);
-    tblseticons(L, "ERROR_UNKNOWN",     ERROR_UNKNOWN);
+    TBL_SET_INT_CONST(L, ERROR_NO_MEMORY);
+    TBL_SET_INT_CONST(L, ERROR_INVALID);
+    TBL_SET_INT_CONST(L, ERROR_INCOMPLETE);
+    TBL_SET_INT_CONST(L, ERROR_FINALIZED);
+    TBL_SET_INT_CONST(L, ERROR_UNKNOWN);
 
     lua_pushliteral(L, "VERSION");
     lua_pushstring(L, LIB_VERSION);
     lua_settable(L, -3);
 
     luaL_newmetatable(L, ICONV_TYPENAME);
+
     lua_pushliteral(L, "__index");
     lua_pushvalue(L, -3);
     lua_settable(L, -3);
-    luaL_openlib(L, NULL, iconvMT, 0);
+
+    lua_pushliteral(L, "__gc");
+    lua_pushcfunction(L, Liconv_close);
+    lua_settable(L, -3);
+
     lua_pop(L, 1);
 
     return 1;
