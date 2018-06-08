@@ -1,6 +1,6 @@
 /*
  * luaiconv - Performs character set conversions in Lua
- * (c) 2005-08 Alexandre Erwin Ittner <aittner@gmail.com>
+ * (c) 2005-09 Alexandre Erwin Ittner <aittner@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -24,7 +24,7 @@
  * If you use this package in a product, an acknowledgment in the product
  * documentation would be greatly appreciated (but it is not required).
  *
- * $Id: luaiconv.c 54 2008-05-19 00:37:56Z dermeister $
+ * $Id: luaiconv.c 65 2009-08-06 16:30:06Z dermeister $
  *
  */
 
@@ -37,7 +37,7 @@
 #include <errno.h>
 
 #define LIB_NAME                "iconv"
-#define LIB_VERSION             LIB_NAME " r5"
+#define LIB_VERSION             LIB_NAME " 6"
 #define ICONV_TYPENAME          "iconv_t"
 
 

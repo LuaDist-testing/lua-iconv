@@ -32,7 +32,7 @@ OMIT_FRAME_POINTER = -fomit-frame-pointer
 
 # Name of .pc file. "lua5.1" on Debian/Ubuntu
 LUAPKG = lua5.1
-CFLAGS = `pkg-config $(LUAPKG) --cflags` -O3 -Wall
+CFLAGS = `pkg-config $(LUAPKG) --cflags` -fPIC -O3 -Wall
 LFLAGS = -shared $(OMIT_FRAME_POINTER)
 INSTALL_PATH = `pkg-config $(LUAPKG) --variable=INSTALL_CMOD`
 
@@ -40,7 +40,7 @@ INSTALL_PATH = `pkg-config $(LUAPKG) --variable=INSTALL_CMOD`
 ## uncomment and change the following ones according to your building
 ## enviroment.
 
-#CFLAGS = -I/usr/include/lua5.1/ -O3 -Wall
+#CFLAGS = -I/usr/include/lua5.1/ -fPIC -O3 -Wall
 #LFLAGS = -shared $(OMIT_FRAME_POINTER)
 #INSTALL_PATH = /usr/lib/lua/5.1
 
@@ -55,7 +55,7 @@ iconv.so: iconv.lo
 
 install: iconv.so
 	make test
-	install -D -s iconv.so $(INSTALL_PATH)/iconv.so
+	install -D -s iconv.so $(DESTDIR)/$(INSTALL_PATH)/iconv.so
 
 clean:
 	$(RM) iconv.so iconv.lo

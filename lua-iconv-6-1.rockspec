@@ -5,17 +5,17 @@
 -- rockspec based uppon the file provided by DarkGod <darkgod at net-core.org>
 
 package = "lua-iconv"
-version = "r5-2"
+version = "6-1"
 
 -- LuaDist source
 source = {
-  tag = "r5-2",
+  tag = "6-1",
   url = "git://github.com/LuaDist-testing/lua-iconv.git"
 }
 -- Original source
 -- source = {
---   url = "http://luaforge.net/frs/download.php/3389/lua-iconv-r5.tar.gz",
---   md5 = "c4ebb5e70844700144a82375448dfa17"
+--   url = "http://luaforge.net/frs/download.php/4181/lua-iconv-6.tar.gz",
+--   md5 = "2cec334c5786d7c420a53003d6cb93d4"
 -- }
 
 description = {
@@ -40,7 +40,7 @@ external_dependencies = {
 }
 
 build = {
-   type = "module",
+   type = "builtin",
    modules = {
       iconv = {
           sources = {"luaiconv.c"},
