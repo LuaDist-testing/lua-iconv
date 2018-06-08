@@ -5,11 +5,11 @@
 -- rockspec based upon the file provided by DarkGod <darkgod at net-core.org>
 
 package = "lua-iconv"
-version = "7-2"
+version = "7-3"
 
 -- LuaDist source
 source = {
-  tag = "7-2",
+  tag = "7-3",
   url = "git://github.com/LuaDist-testing/lua-iconv.git"
 }
 -- Original source
@@ -33,9 +33,27 @@ dependencies = {
    "lua >= 5.1",
 }
 
+local iconv_library_dependency_override = {
+   ICONV = {
+      library = "iconv",
+   },
+}
+
+local iconv_library_module_override = {
+   modules = {
+      iconv = {
+         libraries = {"iconv"}
+      }
+   }
+}
+
 external_dependencies = {
    ICONV = {
       header = "iconv.h"
+   },
+   platforms = {
+      cygwin = iconv_library_dependency_override,
+      macosx = iconv_library_dependency_override,
    }
 }
 
@@ -49,19 +67,7 @@ build = {
       }
    },
    platforms = {
-      cygwin = {
-         modules = {
-            iconv = {
-               libraries = {"iconv"}
-            }
-         }
-      },
-      macosx = {
-         modules = {
-            iconv = {
-               libraries = {"iconv"}
-            }
-         }
-      },
+      cygwin = iconv_library_module_override,
+      macosx = iconv_library_module_override,
    }
 }
