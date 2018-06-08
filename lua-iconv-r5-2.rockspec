@@ -5,11 +5,11 @@
 -- rockspec based uppon the file provided by DarkGod <darkgod at net-core.org>
 
 package = "lua-iconv"
-version = "r5-1"
+version = "r5-2"
 
 -- LuaDist source
 source = {
-  tag = "r5-1",
+  tag = "r5-2",
   url = "git://github.com/LuaDist-testing/lua-iconv.git"
 }
 -- Original source
@@ -40,11 +40,21 @@ external_dependencies = {
 }
 
 build = {
-   type = "make",
-   variables = {
-      CFLAGS = "-I$(LUA_INCDIR) -O3 -Wall",
-      LFLAGS = "$(LIBFLAG)",
-      LIBS = "",
-      INSTALL_PATH = "$(LIBDIR)"
+   type = "module",
+   modules = {
+      iconv = {
+          sources = {"luaiconv.c"},
+          incdirs = {"$(ICONV_INCDIR)"},
+          libdirs = {"$(ICONV_LIBDIR)"}
+      }
+   },
+   platforms = {
+      cygwin = {
+         modules = {
+            iconv = {
+               libraries = {"iconv"}
+            }
+         }
+      }
    }
 }
